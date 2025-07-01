@@ -87,7 +87,7 @@
             </h3>
             <ul>
                 {% for post in result.posts[:3] %}
-                    <li><p>{{ post.cooked | safe }}</p></li>
+                    <li><p>{{ post | safe }}</p></li>
                 {% endfor %}
             </ul>
         </div>

@@ -3,15 +3,23 @@ from bs4 import BeautifulSoup
 import json
 import os
 import time
+from sentence_transformers import SentenceTransformer
 
 BASE_URL = "https://community.audirvana.com"
 MAX_THREADS = 500
-OUTPUT_FILE = "data/threads.json"
+OUTPUT_FILE = "data/threads_with_embeddings.json"
 os.makedirs("data", exist_ok=True)
 
 headers = {
     "User-Agent": "Mozilla/5.0"
 }
+
+model = SentenceTransformer('all-MiniLM-L6-v2')
+
+def clean_html(html_content):
+    soup = BeautifulSoup(html_content, "html.parser")
+    text = soup.get_text(separator=" ", strip=True)
+    return text
 
 def get_slug_and_id(href):
     parts = href.strip("/").split("/")
@@ -29,8 +37,14 @@ def fetch_posts(slug, thread_id, max_posts=3):
         if r.status_code != 200:
             return []
         data = r.json()
-        return [post["cooked"] for post in data["post_stream"]["posts"][:max_posts]]
-    except:
+        # Clean each post from HTML to plain text here
+        cleaned_posts = []
+        for post in data["post_stream"]["posts"][:max_posts]:
+            cleaned_text = clean_html(post["cooked"])
+            cleaned_posts.append(cleaned_text)
+        return cleaned_posts
+    except Exception as e:
+        print(f"Error fetching posts for {slug}/{thread_id}: {e}")
         return []
 
 def fetch_topics_from_html(page=0):
@@ -38,7 +52,7 @@ def fetch_topics_from_html(page=0):
     try:
         response = requests.get(url, headers=headers)
         if response.status_code != 200:
-            print(f"Erreur HTTP {response.status_code} sur la page {page}")
+            print(f"HTTP error {response.status_code} on page {page}")
             return []
         soup = BeautifulSoup(response.text, 'html.parser')
         topic_links = soup.select("a.title")
@@ -50,17 +64,20 @@ def fetch_topics_from_html(page=0):
             if not slug or not thread_id:
                 continue
             posts = fetch_posts(slug, thread_id)
+            combined_text = ' '.join(posts) if posts else ''
+            embedding = model.encode(combined_text).tolist() if combined_text else []
             topics.append({
                 "id": thread_id,
                 "slug": slug,
                 "title": title,
                 "url": f"{BASE_URL}/t/{slug}/{thread_id}",
-                "posts": posts
+                "posts": posts,
+                "embedding": embedding
             })
-            time.sleep(0.4)  # douce pause pour éviter blocage
+            time.sleep(0.4)  # gentle pause
         return topics
     except Exception as e:
-        print(f"Erreur lors du scraping : {e}")
+        print(f"Error scraping page {page}: {e}")
         return []
 
 def scrape_all():
@@ -77,9 +94,9 @@ def scrape_all():
             break
         page += 1
         time.sleep(1)
-    with open(OUTPUT_FILE, "w") as f:
-        json.dump(all_threads, f, indent=2)
-    print(f"{len(all_threads)} threads sauvegardés dans {OUTPUT_FILE}.")
+    with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
+        json.dump(all_threads, f, indent=2, ensure_ascii=False)
+    print(f"{len(all_threads)} threads saved to {OUTPUT_FILE}.")
 
 if __name__ == "__main__":
     scrape_all()
