@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Audirvāna Smart Search</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 0;
+            padding: 2rem;
+            background-color: #f8f9fa;
+        }
+        h1 {
+            text-align: center;
+            font-size: 2rem;
+            margin-bottom: 2rem;
+        }
+        form {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        input[type="text"] {
+            padding: 0.5rem;
+            width: 60%;
+            font-size: 1rem;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+        button {
+            padding: 0.5rem 1rem;
+            font-size: 1rem;
+            margin-left: 1rem;
+            border: none;
+            background-color: #4a90e2;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .result-card {
+            background: white;
+            border: 1px solid #ddd;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            border-radius: 8px;
+        }
+        .result-card h3 {
+            margin-top: 0;
+            font-size: 1.2rem;
+        }
+        .result-card ul {
+            padding-left: 1rem;
+        }
+        .result-card li {
+            margin-bottom: 0.5rem;
+        }
+        a {
+            color: #4a90e2;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+        hr {
+            margin: 2rem 0;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Audirvāna Smart Search 🔍</h1>
+
+<form method="get">
+    <input type="text" name="q" placeholder="Search for issues..." value="{{ query }}">
+    <button type="submit">Search</button>
+</form>
+
+{% if results %}
+    {% for result in results %}
+        <div class="result-card">
+            {% set fixed_url = result.url %}
+            {% if "https://community.audirvana.com" in fixed_url %}
+                {% set fixed_url = "https://community.audirvana.com" + fixed_url.split("https://community.audirvana.com")[-1] %}
+            {% endif %}
+            <h3>
+                <a href="{{ fixed_url }}" target="_blank">{{ result.title }}</a>
+            </h3>
+            <ul>
+                {% for post in result.posts[:3] %}
+                    <li><p>{{ post.cooked | safe }}</p></li>
+                {% endfor %}
+            </ul>
+        </div>
+    {% endfor %}
+{% elif query %}
+    <p style="text-align: center;">No results found for "<strong>{{ query }}</strong>".</p>
+{% endif %}
+
+</body>
+</html>
+
